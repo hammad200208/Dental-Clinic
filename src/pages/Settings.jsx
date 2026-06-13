@@ -91,9 +91,9 @@ export default function Settings() {
   const handleClear = () => {
     if (!window.confirm("Delete all data?")) return;
 
-    localStorage.removeItem("dental_patients");
-    localStorage.removeItem("dental_appointments");
-
+    // Keep keys present with empty arrays so the app does not reseed default patients on reload.
+    localStorage.setItem("dental_patients", JSON.stringify([]));
+    localStorage.setItem("dental_appointments", JSON.stringify([]));
     localStorage.removeItem("dental_settings");
 
     alert("All data cleared");

@@ -1,119 +1,36 @@
-const STORAGE_KEY = "dental_appointments";
-
-import { patientService } from "./patientServices";
-
-/**
- * Get all appointments
- */
-const getAll = () => {
-  const data = localStorage.getItem(STORAGE_KEY);
-  return data ? JSON.parse(data) : [];
+const getAll = async () => {
+  if (!window.api?.getAppointments) return [];
+  return await window.api.getAppointments();
 };
 
-/**
- * Save all appointments
- */
-const saveAll = (appointments) => {
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify(appointments)
-  );
+const getById = async (id) => {
+  const appointments = await getAll();
+  return appointments.find((a) => a.id === Number(id));
 };
 
-/**
- * Add appointment
- */
-const add = (appointment) => {
-  const appointments = getAll();
-
-  const patient = patientService.getById(
-    appointment.patientId
-  );
-
-  const newAppointment = {
-    id: Date.now(),
-
-    patientId: appointment.patientId,
-
-    name: patient?.name || "",
-    phone: patient?.phone || "",
-
-    treatment: appointment.treatment || "",
-    date: appointment.date || "",
-    time: appointment.time || "",
-
-    status: appointment.status || "Pending",
-
-    createdAt: new Date().toISOString(),
-  };
-
-  appointments.push(newAppointment);
-
-  saveAll(appointments);
-
-  return newAppointment;
+const add = async (appointment) => {
+  if (!window.api?.addAppointment) return null;
+  return await window.api.addAppointment(appointment);
 };
 
-/**
- * Get appointment by ID
- */
-const getById = (id) => {
-  const appointments = getAll();
-
-  return appointments.find(
-    (a) => a.id === Number(id)
-  );
+const update = async (id, updatedData) => {
+  if (!window.api?.updateAppointment) return false;
+  return await window.api.updateAppointment({ id: Number(id), ...updatedData });
 };
 
-/**
- * Update appointment
- */
-const update = (id, updatedData) => {
-  const appointments = getAll();
-
-  const updated = appointments.map((a) =>
-    a.id === Number(id)
-      ? {
-          ...a,
-          ...updatedData,
-        }
-      : a
-  );
-
-  saveAll(updated);
+const remove = async (id) => {
+  if (!window.api?.deleteAppointment) return false;
+  return await window.api.deleteAppointment(Number(id));
 };
 
-/**
- * Remove appointment
- */
-const remove = (id) => {
-  const appointments = getAll();
-
-  const updated = appointments.filter(
-    (a) => a.id !== Number(id)
-  );
-
-  saveAll(updated);
+const updateStatus = async (id, status) => {
+  if (!window.api?.updateAppointmentStatus) return false;
+  return await window.api.updateAppointmentStatus(Number(id), status);
 };
 
-const updateStatus = (id, status) => {
-  const appointments = getAll();
-
-  const updated = appointments.map((a) =>
-    a.id === Number(id)
-      ? { ...a, status }
-      : a
-  );
-
-  saveAll(updated);
-};
-
-const getByPatientId = (patientId) => {
-  const appointments = getAll();
-
-  return appointments.filter(
-    (a) => a.patientId === Number(patientId)
-  );
+const getByPatientId = async (patientId) => {
+  if (!window.api?.getAppointmentsByPatient) return [];
+  return await window.api.getAppointmentsByPatient(Number(patientId));
 };
 
 export const appointmentService = {

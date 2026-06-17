@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FaPlus } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
@@ -13,31 +13,57 @@ import EmptyState from "../components/ui/EmptyState";
 export default function Patients() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
 
-  // always fresh data from storage
-  const patients = patientService.getAll();
+  // Load patients on mount
+  useEffect(() => {
+    const loadPatients = async () => {
+      try {
+        const data = await patientService.getAll();
 
-  const handleDeletePatient = (id) => {
+        // Normalize only safe UI defaults
+        const normalized = data.map((p) => ({
+          ...p,
+          status: p.status || "Active",
+        }));
+
+        setPatients(normalized);
+      } catch (err) {
+        console.error("Failed to load patients", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPatients();
+  }, []);
+
+  const handleDeletePatient = async (id) => {
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this patient?"
     );
 
     if (!confirmDelete) return;
 
-    patientService.remove(id);
-
-    window.location.reload();
+    try {
+      await patientService.remove(id);
+      setPatients((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      console.error("Delete failed", err);
+      alert("Failed to delete patient. Please try again.");
+    }
   };
 
   const filteredPatients = patients
     .filter((patient) => {
       const matchSearch =
-        patient.name
+        (patient.name || "")
           .toLowerCase()
           .includes(search.toLowerCase()) ||
-        patient.phone.includes(search);
+        (patient.phone || "").includes(search);
 
       const matchStatus =
         statusFilter === "All"
@@ -46,10 +72,11 @@ export default function Patients() {
 
       return matchSearch && matchStatus;
     })
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt) - new Date(a.createdAt)
-    );
+    .sort((a, b) => {
+      const aDate = new Date(a.created_at || a.createdAt || 0);
+      const bDate = new Date(b.created_at || b.createdAt || 0);
+      return bDate - aDate;
+    });
 
   const columns = [
     {
@@ -97,6 +124,10 @@ export default function Patients() {
       ),
     },
   ];
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading patients...</div>;
+  }
 
   return (
     <div className="space-y-6">

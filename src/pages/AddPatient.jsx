@@ -6,14 +6,15 @@ import { patientService } from "./../services/patientServices";
 
 export default function AddPatient() {
   const navigate = useNavigate();
+  const [saving, setSaving] = useState(false);
 
-const [formData, setFormData] = useState({
-  name: "",
-  phone: "",
-  age: "",
-  gender: "",
-  problem: "",
-});
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    age: "",
+    gender: "",
+    problem: "",
+  });
 
 const handleChange = (e) => {
   setFormData({
@@ -22,12 +23,34 @@ const handleChange = (e) => {
   });
 };
 
-const handleSubmit = (e) => {
+const handleSubmit = async (e) => {
   e.preventDefault();
 
-  patientService.add(formData);
+  if (!formData.name.trim() || !formData.phone.trim()) {
+    alert("Name and phone are required.");
+    return;
+  }
 
-  navigate("/patients");
+  if (!formData.gender) {
+    alert("Please select gender.");
+    return;
+  }
+
+  setSaving(true);
+
+  try {
+    await patientService.add({
+      ...formData,
+      age: formData.age ? Number(formData.age) : null,
+    });
+
+    navigate("/patients");
+  } catch (err) {
+    console.error("Failed to add patient:", err);
+    alert("Failed to save patient. Please try again.");
+  } finally {
+    setSaving(false);
+  }
 };
 
   return (
@@ -145,9 +168,9 @@ const handleSubmit = (e) => {
                     focus:ring-blue-500
                   "
                 >
-                  <option>Select Gender</option>
-                  <option>Male</option>
-                  <option>Female</option>
+                  <option value="">Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
                 </select>
               </div>
             </div>
@@ -194,6 +217,7 @@ const handleSubmit = (e) => {
           <div className="flex justify-end">
             <button
               type="submit"
+              disabled={saving}
               className="
                 flex
                 items-center
@@ -205,11 +229,12 @@ const handleSubmit = (e) => {
                 rounded-xl
                 hover:bg-blue-700
                 transition
+                disabled:opacity-50
+                disabled:cursor-not-allowed
               "
             >
               <FaSave />
-
-              Save Patient
+              {saving ? "Saving..." : "Save Patient"}
             </button>
           </div>
         </form>

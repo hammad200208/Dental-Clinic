@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { patientService } from "../services/patientServices";
 
@@ -6,33 +6,77 @@ export default function EditPatient() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const patient = patientService.getById(id);
+  const [form, setForm] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const [form, setForm] = useState({
-    name: patient?.name || "",
-    phone: patient?.phone || "",
-    age: patient?.age || "",
-    problem: patient?.problem || "",
-    status: patient?.status || "Active",
-  });
+  // ✅ Load patient async
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await patientService.getById(Number(id));
 
-  if (!patient) {
+        setForm(
+          data ?? {
+            name: "",
+            phone: "",
+            age: "",
+            problem: "",
+            status: "Active",
+          }
+        );
+      } catch (err) {
+        console.error("Failed to load patient:", err);
+        setForm(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, [id]);
+
+  const handleChange = (e) => {
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  // ✅ async update
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!form.name || !form.phone) {
+      alert("Name and phone are required");
+      return;
+    }
+
+    try {
+      await patientService.updatePatient(Number(id), {
+        ...form,
+        age: form.age ? Number(form.age) : null,
+      });
+
+      navigate(`/patients/${id}`);
+    } catch (err) {
+      console.error("Update failed:", err);
+      alert("Failed to update patient");
+    }
+  };
+
+  // ✅ loading state
+  if (loading) {
+    return <div className="p-6 text-slate-400">Loading...</div>;
+  }
+
+  // ✅ not found state
+  if (!form) {
     return <h2 className="p-6">Patient not found</h2>;
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    patientService.updatePatient(id, form);
-
-    navigate(`/patients/${id}`);
-  };
-
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-bold">
-        Edit Patient
-      </h1>
+      <h1 className="text-2xl font-bold">Edit Patient</h1>
 
       <form
         onSubmit={handleSubmit}
@@ -40,67 +84,47 @@ export default function EditPatient() {
       >
         <input
           type="text"
-          placeholder="Name"
+          name="name"
           value={form.name}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              name: e.target.value,
-            })
-          }
+          onChange={handleChange}
           className="w-full border p-2 rounded-lg"
+          placeholder="Name"
         />
 
         <input
           type="text"
-          placeholder="Phone"
+          name="phone"
           value={form.phone}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              phone: e.target.value,
-            })
-          }
+          onChange={handleChange}
           className="w-full border p-2 rounded-lg"
+          placeholder="Phone"
         />
 
         <input
           type="number"
-          placeholder="Age"
+          name="age"
           value={form.age}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              age: e.target.value,
-            })
-          }
+          onChange={handleChange}
           className="w-full border p-2 rounded-lg"
+          placeholder="Age"
         />
 
         <textarea
-          placeholder="Problem"
+          name="problem"
           value={form.problem}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              problem: e.target.value,
-            })
-          }
+          onChange={handleChange}
           className="w-full border p-2 rounded-lg"
+          placeholder="Problem"
         />
 
         <select
+          name="status"
           value={form.status}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              status: e.target.value,
-            })
-          }
+          onChange={handleChange}
           className="w-full border p-2 rounded-lg"
         >
-          <option>Active</option>
-          <option>Pending</option>
+          <option value="Active">Active</option>
+          <option value="Pending">Pending</option>
         </select>
 
         <button

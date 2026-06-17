@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { appointmentService } from "../services/appointmentService";
 
@@ -6,18 +6,34 @@ export default function EditAppointment() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [form, setForm] = useState(() => {
-    const data = appointmentService.getById(id);
-    return (
-      data ?? {
-        name: "",
-        date: "",
-        time: "",
-        treatment: "",
-        status: "Pending",
+  const [form, setForm] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // ✅ FIX: async load
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await appointmentService.getById(Number(id));
+
+        setForm(
+          data ?? {
+            name: "",
+            date: "",
+            time: "",
+            treatment: "",
+            status: "Pending",
+          }
+        );
+      } catch (err) {
+        console.error("Failed to load appointment:", err);
+        setForm(null);
+      } finally {
+        setLoading(false);
       }
-    );
-  });
+    };
+
+    load();
+  }, [id]);
 
   const handleChange = (e) => {
     setForm({
@@ -26,13 +42,30 @@ export default function EditAppointment() {
     });
   };
 
-  const handleUpdate = (e) => {
+  // ✅ FIX: async + await
+  const handleUpdate = async (e) => {
     e.preventDefault();
 
-    appointmentService.update(id, form);
+    if (!form) return;
+
+    await appointmentService.update(Number(id), form);
 
     navigate("/appointments");
   };
+
+  // ✅ Loading state
+  if (loading) {
+    return <div className="p-6 text-slate-400">Loading...</div>;
+  }
+
+  // ✅ Not found state
+  if (!form) {
+    return (
+      <div className="p-6 text-slate-500">
+        Appointment not found
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-6">

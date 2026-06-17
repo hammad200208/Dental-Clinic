@@ -1,308 +1,78 @@
-const STORAGE_KEY = "dental_patients";
-
-/**
- * Get all patients (with safe normalization)
- */
-const getAll = () => {
-  const data = localStorage.getItem(STORAGE_KEY);
-  const patients = data ? JSON.parse(data) : [];
-
-  return patients.map((p) => ({
-    id: p.id,
-    name: p.name || "",
-    phone: p.phone || "",
-    age: p.age || "",
-    problem: p.problem || "",
-    status: p.status || "Active",
-    createdAt: p.createdAt || new Date().toISOString(),
-    visits: (p.visits || []).map((v) => ({
-      ...v,
-      // optional cleanup (ignore old pendingAmount if exists)
-      pendingAmount: undefined,
-    })),
-  }));
+const getAll = async () => {
+  if (!window.api?.getPatients) return [];
+  return await window.api.getPatients();
 };
 
-/**
- * Save all patients
- */
-const saveAll = (patients) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(patients));
+const getById = async (id) => {
+  if (!window.api?.getPatientById) return null;
+  return await window.api.getPatientById(Number(id));
 };
 
-/**
- * Add new patient
- */
-const add = (patient) => {
-  const patients = getAll();
-
-  const newPatient = {
-    id: Date.now(),
-    name: patient.name || "",
-    phone: patient.phone || "",
-    age: patient.age || "",
-    problem: patient.problem || "",
-    status: "Active",
-    createdAt: new Date().toISOString(),
-    visits: [],
-  };
-
-  patients.push(newPatient);
-  saveAll(patients);
-
-  return newPatient;
+const add = async (patient) => {
+  if (!window.api?.addPatient) return null;
+  return await window.api.addPatient(patient);
 };
 
-/**
- * Remove patient
- */
-const remove = (id) => {
-  const patients = getAll();
-  const updated = patients.filter((p) => p.id !== id);
-  saveAll(updated);
+const remove = async (id) => {
+  if (!window.api?.deletePatient) return false;
+  return await window.api.deletePatient(Number(id));
 };
 
-/**
- * Get single patient
- */
-const getById = (id) => {
-  const patients = getAll();
-  return patients.find((p) => p.id === Number(id));
+const updatePatient = async (id, data) => {
+  if (!window.api?.updatePatient) return false;
+  return await window.api.updatePatient(Number(id), data);
 };
 
-/**
- * Add visit (FIXED - no pendingAmount stored)
- */
-const addVisit = (patientId, visitData) => {
-  const patients = getAll();
-
-  const updatedPatients = patients.map((patient) => {
-    if (patient.id === Number(patientId)) {
-      const amount = Number(visitData.amount) || 0;
-
-      const paidAmount = Math.min(
-        Number(visitData.paidAmount) || 0,
-        amount
-      );
-
-      const newVisit = {
-        id: Date.now(),
-        treatment: visitData.treatment || "",
-        notes: visitData.notes || "",
-        amount,
-        paidAmount,
-        date: visitData.date || new Date().toISOString(),
-        nextVisit: visitData.nextVisit || null,
-      };
-
-      return {
-        ...patient,
-        visits: [...(patient.visits || []), newVisit],
-      };
-    }
-
-    return patient;
-  });
-
-  saveAll(updatedPatients);
+const addVisit = async (patientId, visit) => {
+  if (!window.api?.addVisit) return null;
+  return await window.api.addVisit(Number(patientId), visit);
 };
 
-/**
- * Update patient
- */
-const updatePatient = (id, updatedData) => {
-  const patients = getAll();
-
-  const updatedPatients = patients.map((patient) => {
-    if (patient.id === Number(id)) {
-      return {
-        ...patient,
-        ...updatedData,
-      };
-    }
-
-    return patient;
-  });
-
-  saveAll(updatedPatients);
+const deleteVisit = async (visitId) => {
+  if (!window.api?.deleteVisit) return false;
+  return await window.api.deleteVisit(Number(visitId));
 };
 
-/**
- * Delete visit
- */
-const deleteVisit = (patientId, visitId) => {
-  const patients = getAll();
-
-  const updatedPatients = patients.map((patient) => {
-    if (patient.id === Number(patientId)) {
-      return {
-        ...patient,
-        visits: (patient.visits || []).filter(
-          (v) => v.id !== visitId
-        ),
-      };
-    }
-
-    return patient;
-  });
-
-  saveAll(updatedPatients);
+const getVisitsByPatient = async (patientId) => {
+  if (!window.api?.getVisitsByPatient) return [];
+  return await window.api.getVisitsByPatient(Number(patientId));
 };
 
-/**
- * Shared billing calculator (FIXED)
- */
-const calculateBill = (visits = []) => {
-  let total = 0;
-  let paid = 0;
-  let pending = 0;
-
-  visits.forEach((v) => {
-    const amount = v.amount ?? 0;
-    const paidAmount = v.paidAmount ?? 0;
-
-    total += amount;
-    paid += paidAmount;
-    pending += Math.max(0, amount - paidAmount);
-  });
-
-  return {
-    total,
-    paid,
-    pending,
-  };
+const collectPayment = async (patientId, visitId, amount) => {
+  if (!window.api?.updateVisitPayment) return false;
+  return await window.api.updateVisitPayment(Number(visitId), amount);
 };
 
-/**
- * Revenue (ALL PATIENTS) (FIXED)
- */
-const getRevenue = () => {
-  const patients = getAll();
-
-  let total = 0;
-  let paid = 0;
-  let pending = 0;
-
-  patients.forEach((patient) => {
-    (patient.visits || []).forEach((v) => {
-      const amount = v.amount ?? 0;
-      const paidAmount = v.paidAmount ?? 0;
-
-      total += amount;
-      paid += paidAmount;
-      pending += Math.max(0, amount - paidAmount);
-    });
-  });
-
-  return {
-    total,
-    paid,
-    pending,
-  };
-};
-
-/**
- * Single patient bill
- */
-const getPatientBill = (patientId) => {
-  const patient = getById(patientId);
-
+// Used by Invoice.jsx — returns patient + computed totals
+const getPatientInvoice = async (id) => {
+  const patient = await getById(id);
   if (!patient) return null;
 
-  return calculateBill(patient.visits || []);
-};
+  const visits = Array.isArray(patient.visits) ? patient.visits : [];
 
-/**
- * Patient invoice (FIXED)
- */
-const getPatientInvoice = (patientId) => {
-  const patient = getById(patientId);
-
-  if (!patient) return null;
-
-  let total = 0;
-  let paid = 0;
-  let pending = 0;
-
-  (patient.visits || []).forEach((v) => {
-    const amount = v.amount ?? 0;
-    const paidAmount = v.paidAmount ?? 0;
-
-    total += amount;
-    paid += paidAmount;
-    pending += Math.max(0, amount - paidAmount);
-  });
+  const total = visits.reduce((sum, v) => sum + (Number(v.amount) || 0), 0);
+  const paid = visits.reduce((sum, v) => sum + (Number(v.paidAmount) || 0), 0);
+  const pending = total - paid;
 
   return {
     patient,
     total,
     paid,
     pending,
-    invoiceNumber: `INV-${patientId}-${Date.now().toString().slice(-6)}`,
+    invoiceNumber: `INV-${String(patient.id).padStart(4, "0")}`,
+    createdAt: patient.created_at,
   };
 };
 
-const collectPayment = (
-  patientId,
-  visitId,
-  paymentAmount
-) => {
-  const patients = getAll();
-
-  const updatedPatients = patients.map((patient) => {
-    if (patient.id !== Number(patientId)) {
-      return patient;
-    }
-
-    return {
-      ...patient,
-      visits: (patient.visits || []).map((visit) => {
-        if (visit.id !== visitId) {
-          return visit;
-        }
-
-        const currentPaid =
-          Number(visit.paidAmount) || 0;
-
-        const amount =
-          Number(visit.amount) || 0;
-
-        const maxPayment =
-          amount - currentPaid;
-
-        const safePayment = Math.min(
-          Number(paymentAmount),
-          maxPayment
-        );
-
-        return {
-          ...visit,
-          paidAmount:
-            currentPaid + safePayment,
-        };
-      }),
-    };
-  });
-
-  saveAll(updatedPatients);
-
-  return true;
-};
-
-/**
- * Export service
- */
 export const patientService = {
   getAll,
-  saveAll,
+  getById,
   add,
   remove,
-  getById,
-  addVisit,
   updatePatient,
+  addVisit,
   deleteVisit,
-  getRevenue,
-  getPatientBill,
-  getPatientInvoice,
+  getVisitsByPatient,
   collectPayment,
+  getPatientInvoice,
 };

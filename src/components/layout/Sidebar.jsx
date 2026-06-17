@@ -24,7 +24,7 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-72 bg-slate-900 text-white flex flex-col">
+    <aside className="w-72 bg-slate-900 text-white flex flex-col print:hidden">
       
       {/* Logo */}
       <div className="p-6 border-b border-slate-800">

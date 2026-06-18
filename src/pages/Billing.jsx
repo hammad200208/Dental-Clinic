@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FaPlus } from "react-icons/fa";
+import { FaPlus, FaRupeeSign, FaCheckCircle, FaHourglassHalf, FaFileInvoiceDollar } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { patientService } from "../services/patientServices";
 
@@ -92,6 +92,8 @@ export default function Billing() {
   const totalRevenue = invoices.reduce((sum, inv) => sum + inv.amount, 0);
   const totalPaid = invoices.reduce((sum, inv) => sum + inv.paidAmount, 0);
   const totalPending = invoices.filter((inv) => inv.balance > 0).reduce((sum, inv) => sum + inv.balance, 0);
+
+  const formatCurrency = (amount) => `Rs. ${Number(amount).toLocaleString("en-PK")}`;
 
   const filteredInvoices = invoices.filter((invoice) => {
     const matchesSearch =
@@ -189,10 +191,10 @@ export default function Billing() {
       />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Total Revenue" value={`Rs. ${totalRevenue.toLocaleString()}`} icon={<span className="text-2xl">₹</span>} color="blue" />
-        <StatCard title="Paid Amount" value={`Rs. ${totalPaid.toLocaleString()}`} icon={<span className="text-2xl">✓</span>} color="green" />
-        <StatCard title="Pending Amount" value={`Rs. ${totalPending.toLocaleString()}`} icon={<span className="text-2xl">⏳</span>} color="orange" />
-        <StatCard title="Invoices" value={invoices.length} icon={<span className="text-2xl">#</span>} color="purple" />
+        <StatCard title="Total Revenue" value={formatCurrency(totalRevenue)} icon={<FaRupeeSign className="text-xl md:text-2xl" />} color="blue" />
+        <StatCard title="Paid Amount" value={formatCurrency(totalPaid)} icon={<FaCheckCircle className="text-xl md:text-2xl" />} color="green" />
+        <StatCard title="Pending Amount" value={formatCurrency(totalPending)} icon={<FaHourglassHalf className="text-xl md:text-2xl" />} color="orange" />
+        <StatCard title="Invoices" value={invoices.length} icon={<FaFileInvoiceDollar className="text-xl md:text-2xl" />} color="purple" />
       </div>
 
       <SearchBar

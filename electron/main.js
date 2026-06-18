@@ -103,10 +103,19 @@ ipcMain.handle("patients:delete", (_, id) => {
 
 ipcMain.handle("visits:add", (_, { patientId, visit }) => {
   try {
-    const result = getDb().prepare(`
+    const db = getDb();
+    const result = db.prepare(`
       INSERT INTO visits (patient_id, treatment, notes, amount, paid_amount, next_visit)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(patientId, visit.treatment, visit.notes, visit.amount, visit.paidAmount, visit.nextVisit);
+
+    // ✅ The follow-up just happened — clear nextVisit on all PRIOR visits
+    // for this patient, since this new visit IS that follow-up
+    db.prepare(`
+      UPDATE visits SET next_visit = NULL
+      WHERE patient_id = ? AND id != ?
+    `).run(patientId, result.lastInsertRowid);
+
     return { id: result.lastInsertRowid, ...visit };
   } catch (err) {
     console.error("visits:add error", err);

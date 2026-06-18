@@ -74,8 +74,13 @@ export default function Dashboard() {
   const confirmed = todayAppointments.filter((a) => a.status === "Confirmed");
   const completed = todayAppointments.filter((a) => a.status === "Completed");
 
-  const nextAppointment = [...todayAppointments]
-    .sort((a, b) => a.time.localeCompare(b.time))[0];
+  const todayList = todayAppointments
+    .filter((a) => a.status !== "Completed")
+    .sort((a, b) => a.time.localeCompare(b.time));
+
+  const now = new Date();
+  const nextAppointment =
+    todayList.find((a) => new Date(`${a.date} ${a.time}`) > now) || null;
 
   // =========================
   // 📈 MONTHLY REVENUE
@@ -189,7 +194,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 bg-white rounded-2xl border p-5 shadow-sm">
-          <h2 className="text-lg font-semibold mb-4">🗓️ Today's Workflow</h2>
+          <h2 className="text-lg font-semibold mb-4"><FaCalendarCheck className="inline mr-2" /> Today's Workflow</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
               ["Pending", pending, "Confirmed"],

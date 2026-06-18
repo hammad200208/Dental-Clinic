@@ -6,15 +6,19 @@ import { patientService } from "../services/patientServices";
 export default function NewAppointment() {
   const navigate = useNavigate();
   const [patients, setPatients] = useState([]);
+  const [mode, setMode] = useState("existing"); // "existing" | "new"
+  const [saving, setSaving] = useState(false);
+
   const [form, setForm] = useState({
     patientId: "",
+    newName: "",
+    newPhone: "",
     date: "",
     time: "",
     treatment: "",
     status: "Pending",
   });
 
-  // ✅ FIXED: async load — useState initializer can't be async
   useEffect(() => {
     const load = async () => {
       const data = await patientService.getAll();
@@ -29,50 +33,137 @@ export default function NewAppointment() {
 
   const handlePatientChange = (e) => {
     const id = Number(e.target.value);
-    // ✅ Simplified: just store the id, look up patient at submit time
     setForm({ ...form, patientId: id || "" });
   };
 
-  // ✅ FIXED: async + awaited + name/phone included
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.patientId || !form.date || !form.time) return;
+    if (!form.date || !form.time) return;
 
-    const patient = patients.find((p) => p.id === form.patientId);
+    setSaving(true);
 
-    await appointmentService.add({
-      patientId: form.patientId,
-      name: patient?.name ?? "",   // ✅ required by your INSERT
-      phone: patient?.phone ?? "", // ✅ required by your INSERT
-      date: form.date,
-      time: form.time,
-      treatment: form.treatment,
-      status: form.status,
-    });
+    try {
+      let patientId = form.patientId;
+      let name = "";
+      let phone = "";
 
-    navigate("/appointments");
+      if (mode === "existing") {
+        if (!patientId) {
+          alert("Please select a patient.");
+          setSaving(false);
+          return;
+        }
+        const patient = patients.find((p) => p.id === patientId);
+        name = patient?.name ?? "";
+        phone = patient?.phone ?? "";
+      } else {
+        // ✅ New patient — create the patient record first
+        if (!form.newName.trim() || !form.newPhone.trim()) {
+          alert("Please enter name and phone for the new patient.");
+          setSaving(false);
+          return;
+        }
+
+        const newPatient = await patientService.add({
+          name: form.newName.trim(),
+          phone: form.newPhone.trim(),
+          age: null,
+          gender: "",
+          problem: "",
+          status: "Active",
+        });
+
+        if (!newPatient?.id) {
+          alert("Failed to create patient. Please try again.");
+          setSaving(false);
+          return;
+        }
+
+        patientId = newPatient.id;
+        name = newPatient.name;
+        phone = newPatient.phone;
+      }
+
+      await appointmentService.add({
+        patientId,
+        name,
+        phone,
+        date: form.date,
+        time: form.time,
+        treatment: form.treatment,
+        status: form.status,
+      });
+
+      navigate("/appointments");
+    } catch (err) {
+      console.error("Failed to save appointment:", err);
+      alert("Something went wrong. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-6">
       <h2 className="text-2xl font-bold">New Appointment</h2>
 
+      {/* Mode toggle */}
+      <div className="flex gap-2 bg-slate-100 p-1 rounded-xl w-fit">
+        <button
+          type="button"
+          onClick={() => setMode("existing")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            mode === "existing" ? "bg-white shadow-sm text-blue-700" : "text-slate-500"
+          }`}
+        >
+          Existing Patient
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("new")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            mode === "new" ? "bg-white shadow-sm text-blue-700" : "text-slate-500"
+          }`}
+        >
+          New Patient
+        </button>
+      </div>
+
       <form
         onSubmit={handleSubmit}
         className="bg-white p-6 rounded-2xl border space-y-4"
       >
-        <select
-          value={form.patientId}
-          onChange={handlePatientChange}
-          className="w-full border p-2 rounded-lg"
-        >
-          <option value="">Select Patient</option>
-          {patients.map((patient) => (
-            <option key={patient.id} value={patient.id}>
-              {patient.name} ({patient.phone})
-            </option>
-          ))}
-        </select>
+        {mode === "existing" ? (
+          <select
+            value={form.patientId}
+            onChange={handlePatientChange}
+            className="w-full border p-2 rounded-lg"
+          >
+            <option value="">Select Patient</option>
+            {patients.map((patient) => (
+              <option key={patient.id} value={patient.id}>
+                {patient.name} ({patient.phone})
+              </option>
+            ))}
+          </select>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <input
+              name="newName"
+              placeholder="Patient Name"
+              value={form.newName}
+              onChange={handleChange}
+              className="w-full border p-2 rounded-lg"
+            />
+            <input
+              name="newPhone"
+              placeholder="Phone Number"
+              value={form.newPhone}
+              onChange={handleChange}
+              className="w-full border p-2 rounded-lg"
+            />
+          </div>
+        )}
 
         <input
           type="date"
@@ -111,9 +202,10 @@ export default function NewAppointment() {
 
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
+          disabled={saving}
+          className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
-          Save Appointment
+          {saving ? "Saving..." : "Save Appointment"}
         </button>
       </form>
     </div>

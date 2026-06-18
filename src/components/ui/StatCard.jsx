@@ -47,21 +47,23 @@ export default function StatCard({
         transition
       "
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-slate-500 text-sm">
             {title}
           </p>
 
-          <h2 className="text-3xl font-bold mt-2 text-slate-800">
+          <h2 className="text-2xl md:text-3xl font-bold mt-2 text-slate-800">
             {value}
           </h2>
         </div>
 
         <div
           className={`
-            w-14
-            h-14
+            w-12
+            h-12
+            md:w-14
+            md:h-14
             rounded-xl
             flex
             items-center
